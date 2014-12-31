@@ -1,33 +1,26 @@
-package com.kyrioslab.dsvc.node;
+package com.kyrioslab.dsvc.node.encoder;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
  */
 
 import akka.actor.UntypedActor;
-import akka.cluster.Cluster;
-import akka.cluster.ClusterEvent;
-import akka.cluster.ClusterEvent.MemberEvent;
-import akka.cluster.ClusterEvent.MemberUp;
-import akka.cluster.ClusterEvent.MemberRemoved;
-import akka.cluster.ClusterEvent.UnreachableMember;
 import akka.dispatch.Mapper;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import com.kyrioslab.dsvc.node.client.Client;
 import com.kyrioslab.dsvc.node.messages.ClusterMessage;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
 import com.kyrioslab.jffmpegw.command.BuilderException;
 import com.kyrioslab.jffmpegw.command.Command;
-import com.kyrioslab.jffmpegw.command.EncodeCommand;
 import com.kyrioslab.jffmpegw.command.EncodeCommandBuilder;
 import org.apache.commons.io.FileUtils;
 import scala.concurrent.Future;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 

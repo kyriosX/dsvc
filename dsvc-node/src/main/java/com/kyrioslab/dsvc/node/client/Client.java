@@ -1,4 +1,4 @@
-package com.kyrioslab.dsvc.node;
+package com.kyrioslab.dsvc.node.client;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
@@ -9,6 +9,7 @@ import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.routing.FromConfig;
+import com.kyrioslab.dsvc.node.util.VideoFileComaprator;
 import com.kyrioslab.dsvc.node.messages.ClusterMessage;
 import com.kyrioslab.dsvc.node.messages.LocalMessage;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;

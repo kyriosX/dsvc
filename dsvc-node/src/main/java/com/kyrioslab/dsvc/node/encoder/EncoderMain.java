@@ -1,8 +1,7 @@
-package com.kyrioslab.dsvc.node;
+package com.kyrioslab.dsvc.node.encoder;
 
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import akka.cluster.Cluster;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
