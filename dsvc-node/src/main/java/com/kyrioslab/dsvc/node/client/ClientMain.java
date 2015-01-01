@@ -5,6 +5,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.cluster.Cluster;
 import com.kyrioslab.dsvc.node.messages.LocalMessage;
+import com.kyrioslab.dsvc.node.util.FFMPEGService;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
@@ -13,6 +14,7 @@ import com.typesafe.config.ConfigFactory;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
+ *
  */
 public class ClientMain {
     public static void main(String[] args) {
@@ -24,11 +26,15 @@ public class ClientMain {
 
         final ActorSystem system = ActorSystem.create("EncodeSystem", config);
 
+        final FFMPEGService ffmpegService = new FFMPEGService(ClientMain.class.getResource("/ffmpeg").getPath(),
+                30,
+                System.getProperty("java.io.tmpdir"));
+
         //#registerOnUp
         Cluster.get(system).registerOnMemberUp(new Runnable() {
             @Override
             public void run() {
-                ActorRef client = system.actorOf(Props.create(Client.class),
+                ActorRef client = system.actorOf(Props.create(Client.class, ffmpegService),
                         "encoderClient");
                 CommonAttributes ca = new CommonAttributes();
                 ca.setFormat("mp4");
@@ -37,7 +43,7 @@ public class ClientMain {
                 VideoAttributes va = new VideoAttributes();
                 va.setCodec("mpeg4");
                 client.tell(new LocalMessage.EncodeVideoMessage(
-                        ClientMain.class.getResource("/test_25_48.mp4").getPath(),
+                        ClientMain.class.getResource("/u4.mp4").getPath(),
                         ca,
                         aa,
                         va

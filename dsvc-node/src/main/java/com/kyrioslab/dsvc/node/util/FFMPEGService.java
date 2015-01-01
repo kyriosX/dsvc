@@ -39,7 +39,7 @@ public class FFMPEGService {
     /**
      * Template for part names, used in split command.
      */
-    private static final String SPLIT_OUTPUT_FORMAT = "%d";
+    private static final String SPLIT_OUTPUT_FORMAT = "%d.";
 
     /**
      * Time of video part. Used in split command.

@@ -2,15 +2,16 @@ package com.kyrioslab.dsvc.node.encoder;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
+ *
  */
 
+import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
-import akka.dispatch.Mapper;
 import akka.dispatch.OnComplete;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import com.kyrioslab.dsvc.node.client.Client;
 import com.kyrioslab.dsvc.node.messages.ClusterMessage;
+import com.kyrioslab.dsvc.node.util.EncodeProcessException;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
@@ -18,6 +19,7 @@ import com.kyrioslab.jffmpegw.command.BuilderException;
 import com.kyrioslab.jffmpegw.command.Command;
 import com.kyrioslab.jffmpegw.command.EncodeCommandBuilder;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import scala.concurrent.Future;
 
 import java.io.File;
@@ -26,7 +28,6 @@ import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 
 import static akka.dispatch.Futures.future;
-import static akka.pattern.Patterns.pipe;
 
 
 public class Encoder extends UntypedActor {
@@ -43,6 +44,9 @@ public class Encoder extends UntypedActor {
      */
     public static final String TMP_DIR = System.getProperty("java.io.tmpdir");
 
+    /**
+     * FFMPEG location
+     */
     public static final String FFMPEG_LOCATION = Encoder.class.getResource("/ffmpeg").getPath();
 
     @Override
@@ -72,7 +76,7 @@ public class Encoder extends UntypedActor {
 
             //start encoding process
             Future<File> encodeFuture = future(new Callable<File>() {
-                public File call() throws Exception{
+                public File call() throws Exception {
                     try {
                         return encode(src,
                                 msg.getCommonAttributes(),
@@ -85,6 +89,8 @@ public class Encoder extends UntypedActor {
                 }
             }, getContext().dispatcher());
 
+            //TODO: may produse bug
+            final ActorRef sender = getSender();
             encodeFuture.onComplete(new OnComplete<File>() {
                 @Override
                 public void onComplete(Throwable failure, File success) throws Throwable {
@@ -95,13 +101,14 @@ public class Encoder extends UntypedActor {
                                         msg.getCommonAttributes(),
                                         msg.getAudioAttributes(),
                                         msg.getVideoAttributes());
-                        getSender().tell(failedMsg, getSelf());
+                        sender.tell(failedMsg, getSelf());
                     } else {
                         byte[] payload = FileUtils.readFileToByteArray(success);
                         ClusterMessage.EncodeResultPartMessage resultMsg =
                                 new  ClusterMessage.EncodeResultPartMessage(msg.getPartId(),
                                         payload,
                                         msg.getCommonAttributes().getFormat());
+                        sender.tell(resultMsg, getSelf());
                     }
                 }
             }, getContext().dispatcher());
@@ -110,28 +117,39 @@ public class Encoder extends UntypedActor {
         }
     }
 
-    //TODO: refactor
     protected File encode(File src,
                           CommonAttributes ca,
                           AudioAttributes aa,
-                          VideoAttributes va) throws BuilderException {
+                          VideoAttributes va) throws BuilderException, EncodeProcessException {
 
+        //form encode command
         ca.setInputFile(src.getAbsolutePath());
         Command command = new EncodeCommandBuilder(FFMPEG_LOCATION,
                 ca,
                 va,
                 aa).build();
-        String resultFileName = ENCODE_RESULT + src.getName().substring(0, src.getName().indexOf(".")) + "." + ca.getFormat();
-        command.addAttribute(resultFileName);
+        String resultName = getResultFileName(src.getName(), ca.getFormat());
+        command.addAttribute(resultName);
+
+        //start encode process
         try {
             Process p = new ProcessBuilder(command.getCommand())
                     .directory(new File(TMP_DIR)).start();
-            int code = p.waitFor();
+            if (p.waitFor() != 0) {
+                throw new EncodeProcessException(IOUtils.toString(p.getErrorStream()));
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("IOException while encode process: {}", e.getMessage());
+            throw new EncodeProcessException(e.getMessage());
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            log.error("Encode process interrupted: {}", e.getMessage());
+            throw new EncodeProcessException(e.getMessage());
         }
-        return Paths.get(TMP_DIR, resultFileName).toFile();
+
+        return Paths.get(TMP_DIR, resultName).toFile();
+    }
+
+    private String getResultFileName(String fileName, String format) {
+        return ENCODE_RESULT + fileName.substring(0, fileName.indexOf(".")) + "." + format;
     }
 }

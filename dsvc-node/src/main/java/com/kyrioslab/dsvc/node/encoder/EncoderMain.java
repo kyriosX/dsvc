@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
+ *
  */
 public class EncoderMain {
     public static void main(String [] args){
