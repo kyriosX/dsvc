@@ -16,12 +16,13 @@ import java.util.UUID;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
+ *
  */
 
 public class FFMPEGService {
 
     /**
-     * Batch id and part number.
+     * Batch id and part number delimiter.
      */
     public static final String DELIMETER_ID = "--@@@--";
 
@@ -48,7 +49,7 @@ public class FFMPEGService {
     /**
      * Root temporary dir.
      */
-    private String tmpDir = System.getProperty("java.io.tmpdir");
+    private String tmpDir;
 
     /**
      * Path to ffmpeg tool.
@@ -73,7 +74,7 @@ public class FFMPEGService {
      * @return list of splitted parts
      * @throws java.io.IOException
      */
-    protected List<File> splitVideo(String format, String srcPath) throws IOException, SplitProcessException, InterruptedException {
+    public List<File> splitVideo(String format, String srcPath) throws IOException, SplitProcessException, InterruptedException {
         SplitCommand command = new SplitCommand(ffmpeg, srcPath, segmentTime, 0);
 
         //add output format to spit command
@@ -104,22 +105,16 @@ public class FFMPEGService {
                 new ArrayList<File>() : Arrays.asList(parts);
     }
 
-    private File getReceiveDir(String batchUUID) {
-        return Paths.get(tmpDir, RECEIVE_DIR_PREFIX + batchUUID).toFile();
-    }
-
-    private Process startProcess(Command command, File directory) throws IOException {
-        return new ProcessBuilder(command.getCommand()).directory(directory).start();
-    }
-
     /**
      * Merges encoded parts into resulting video.
      *
-     * @param resDir directory containing received parts
+     * @param batchUUID batch uuid
      * @param fileName name of resulting video file
      * @return resulting video file
      */
-    protected File merge(File resDir, String fileName) throws IllegalStateException, IOException, MergeProcessException, InterruptedException {
+    public File merge(String batchUUID, String fileName) throws IllegalStateException, IOException, MergeProcessException, InterruptedException {
+
+        File resDir = getReceiveDir(batchUUID);
         File[] encodedList = resDir.listFiles();
         if (encodedList == null) {
             throw new IllegalStateException("No files to merge in directory: "
@@ -155,5 +150,30 @@ public class FFMPEGService {
         }
 
         return Paths.get(resDir.getAbsolutePath(), fileName).toFile();
+    }
+
+    public File getReceiveDir(String batchUUID) {
+        return Paths.get(tmpDir, RECEIVE_DIR_PREFIX + batchUUID).toFile();
+    }
+
+    public String getPartId(File part) {
+        return part.getParentFile().getName() + DELIMETER_ID + part.getName();
+    }
+
+    public String batchIdFromPartId(String partId) {
+        return partId.substring(0, partId.indexOf(DELIMETER_ID));
+    }
+
+    public String partNameFromPartId(String partId, String resFormat) {
+        String nameWithNewFormat = partId.substring(0, partId.indexOf(".") + 1) + resFormat;
+        return nameWithNewFormat.substring(nameWithNewFormat.indexOf(DELIMETER_ID) + DELIMETER_ID.length());
+    }
+
+    public File getPartFile(String partId) {
+        return Paths.get(tmpDir, batchIdFromPartId(partId), partId).toFile();
+    }
+
+    private Process startProcess(Command command, File directory) throws IOException {
+        return new ProcessBuilder(command.getCommand()).directory(directory).start();
     }
 }

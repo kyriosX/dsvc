@@ -6,6 +6,7 @@ package com.kyrioslab.dsvc.node.encoder;
 
 import akka.actor.UntypedActor;
 import akka.dispatch.Mapper;
+import akka.dispatch.OnComplete;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import com.kyrioslab.dsvc.node.client.Client;
@@ -30,70 +31,107 @@ import static akka.pattern.Patterns.pipe;
 
 public class Encoder extends UntypedActor {
 
+    private LoggingAdapter log = Logging.getLogger(getContext().system(), this);
+
+    /**
+     * Encoded part prefix
+     */
     public static final String ENCODE_RESULT = "r-";
 
-    private LoggingAdapter log = Logging.getLogger(getContext().system(), this);
+    /**
+     * Temporary dir for encoded parts
+     */
+    public static final String TMP_DIR = System.getProperty("java.io.tmpdir");
+
+    public static final String FFMPEG_LOCATION = Encoder.class.getResource("/ffmpeg").getPath();
 
     @Override
     public void onReceive(Object message) {
         if (message instanceof ClusterMessage.EncodeVideoPartMessage) {
+
+            log.info("Received part: {}", message);
+
             final ClusterMessage.EncodeVideoPartMessage msg =
                     (ClusterMessage.EncodeVideoPartMessage) message;
+            final File src = Paths.get(TMP_DIR, msg.getPartId()).toFile();
 
+            log.debug("Saving part to file: {}", src.getAbsolutePath());
             try {
-                final File src = Paths.get(Client.TMP_DIR, msg.getPartId()).toFile();
                 FileUtils.writeByteArrayToFile(src, msg.getPayload());
-                Future<File> f = future(new Callable<File>() {
-                    public File call() {
-                        try {
-                            return encode(src, msg.getCommonAttributes(), msg.getAudioAttributes(), msg.getVideoAttributes());
-                        } catch (BuilderException e) {
-                            e.printStackTrace();
-                            return null;
-                        }
-                    }
-                }, getContext().dispatcher());
-
-                Future<ClusterMessage.EncodeResultPartMessage> result = f.map(
-                        new Mapper<File, ClusterMessage.EncodeResultPartMessage>() {
-                            public ClusterMessage.EncodeResultPartMessage apply(File encodedPart) {
-                                try {
-                                    return new ClusterMessage.EncodeResultPartMessage(msg.getPartId(),
-                                            FileUtils.readFileToByteArray(encodedPart),
-                                            encodedPart.getName().substring(encodedPart.getName().indexOf(".") + 1));
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                    return new ClusterMessage.EncodeResultPartMessage(null, null, null);
-                                }
-                            }
-                        }, getContext().dispatcher());
-
-                pipe(result, getContext().dispatcher()).to(getSender());
             } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Error occurred while writing part to file: {}", src.getAbsolutePath());
+                ClusterMessage.EncodePartFailed failedMsg =
+                        new ClusterMessage.EncodePartFailed("IOException while saving part to file",
+                                msg.getPartId(),
+                                msg.getCommonAttributes(),
+                                msg.getAudioAttributes(),
+                                msg.getVideoAttributes());
+                getSelf().tell(failedMsg, getSelf());
+                return;
             }
+
+            //start encoding process
+            Future<File> encodeFuture = future(new Callable<File>() {
+                public File call() throws Exception{
+                    try {
+                        return encode(src,
+                                msg.getCommonAttributes(),
+                                msg.getAudioAttributes(),
+                                msg.getVideoAttributes());
+                    } catch (BuilderException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }
+            }, getContext().dispatcher());
+
+            encodeFuture.onComplete(new OnComplete<File>() {
+                @Override
+                public void onComplete(Throwable failure, File success) throws Throwable {
+                    if (failure != null) {
+                        ClusterMessage.EncodePartFailed failedMsg =
+                                new ClusterMessage.EncodePartFailed("Exception while encoding part",
+                                        msg.getPartId(),
+                                        msg.getCommonAttributes(),
+                                        msg.getAudioAttributes(),
+                                        msg.getVideoAttributes());
+                        getSender().tell(failedMsg, getSelf());
+                    } else {
+                        byte[] payload = FileUtils.readFileToByteArray(success);
+                        ClusterMessage.EncodeResultPartMessage resultMsg =
+                                new  ClusterMessage.EncodeResultPartMessage(msg.getPartId(),
+                                        payload,
+                                        msg.getCommonAttributes().getFormat());
+                    }
+                }
+            }, getContext().dispatcher());
         } else {
             unhandled(message);
         }
     }
 
-    protected File encode(File src, CommonAttributes ca, AudioAttributes aa, VideoAttributes va) throws BuilderException {
+    //TODO: refactor
+    protected File encode(File src,
+                          CommonAttributes ca,
+                          AudioAttributes aa,
+                          VideoAttributes va) throws BuilderException {
+
         ca.setInputFile(src.getAbsolutePath());
-        Command command = new EncodeCommandBuilder(Client.FFMPEGLocation,
+        Command command = new EncodeCommandBuilder(FFMPEG_LOCATION,
                 ca,
                 va,
                 aa).build();
-        String resultFileName = ENCODE_RESULT + src.getName().substring(0,src.getName().indexOf(".")) + "." + ca.getFormat();
+        String resultFileName = ENCODE_RESULT + src.getName().substring(0, src.getName().indexOf(".")) + "." + ca.getFormat();
         command.addAttribute(resultFileName);
         try {
             Process p = new ProcessBuilder(command.getCommand())
-                    .directory(new File(Client.TMP_DIR)).start();
+                    .directory(new File(TMP_DIR)).start();
             int code = p.waitFor();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return Paths.get(Client.TMP_DIR, resultFileName).toFile();
+        return Paths.get(TMP_DIR, resultFileName).toFile();
     }
 }

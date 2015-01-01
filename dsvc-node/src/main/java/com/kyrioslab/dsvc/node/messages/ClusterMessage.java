@@ -81,12 +81,22 @@ public interface ClusterMessage {
     }
 
     public static class EncodePartFailed implements Serializable {
+
         private final String reason;
         private final String partId;
+        private final CommonAttributes commonAttributes;
 
-        public EncodePartFailed(String reason, String partId) {
+        private final AudioAttributes audioAttributes;
+        private final VideoAttributes videoAttributes;
+
+        public EncodePartFailed(String reason, String partId,CommonAttributes ca,
+                                AudioAttributes aa,
+                                VideoAttributes va) {
             this.reason = reason;
             this.partId = partId;
+            commonAttributes = ca;
+            audioAttributes = aa;
+            videoAttributes = va;
         }
 
         public String getReason() {
@@ -95,6 +105,18 @@ public interface ClusterMessage {
 
         public String getPartId() {
             return partId;
+        }
+
+        public CommonAttributes getCommonAttributes() {
+            return commonAttributes;
+        }
+
+        public AudioAttributes getAudioAttributes() {
+            return audioAttributes;
+        }
+
+        public VideoAttributes getVideoAttributes() {
+            return videoAttributes;
         }
 
         @Override
