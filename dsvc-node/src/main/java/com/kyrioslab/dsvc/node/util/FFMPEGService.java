@@ -1,8 +1,11 @@
 package com.kyrioslab.dsvc.node.util;
 
+import com.kyrioslab.dsvc.node.MergeProcessException;
+import com.kyrioslab.dsvc.node.SplitProcessException;
 import com.kyrioslab.jffmpegw.command.Command;
 import com.kyrioslab.jffmpegw.command.MergeCommand;
 import com.kyrioslab.jffmpegw.command.SplitCommand;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -145,6 +148,16 @@ public class FFMPEGService {
             if (p.waitFor() != 0) {
                 throw new MergeProcessException(IOUtils.toString(p.getErrorStream()));
             }
+
+            //merge success, remove tmp files
+            File srcDir = getSourceDir(batchUUID);
+            if (srcDir.exists()) {
+
+               //just ensure we are in tmp dir
+               if (srcDir.getParentFile().getPath().equals(tmpDir)) {
+                   FileUtils.deleteDirectory(srcDir);
+               }
+            }
         } catch (IOException e) {
             throw new MergeProcessException("Exception while merge process " + e.getMessage());
         }
@@ -154,6 +167,10 @@ public class FFMPEGService {
 
     public File getReceiveDir(String batchUUID) {
         return Paths.get(tmpDir, RECEIVE_DIR_PREFIX + batchUUID).toFile();
+    }
+
+    public File getSourceDir(String batchUUID) {
+        return Paths.get(tmpDir, batchUUID).toFile();
     }
 
     public String getPartId(File part) {

@@ -11,7 +11,7 @@ import akka.dispatch.OnComplete;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import com.kyrioslab.dsvc.node.messages.ClusterMessage;
-import com.kyrioslab.dsvc.node.util.EncodeProcessException;
+import com.kyrioslab.dsvc.node.EncodeProcessException;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
@@ -53,11 +53,15 @@ public class Encoder extends UntypedActor {
     public void onReceive(Object message) {
         if (message instanceof ClusterMessage.EncodeVideoPartMessage) {
 
-            log.info("Received part: {}", message);
-
             final ClusterMessage.EncodeVideoPartMessage msg =
                     (ClusterMessage.EncodeVideoPartMessage) message;
+
+            log.info("Received part: {}", msg.getPartId());
+
             final File src = Paths.get(TMP_DIR, msg.getPartId()).toFile();
+
+            //TODO: may produse bug
+            final ActorRef sender = getSender();
 
             log.debug("Saving part to file: {}", src.getAbsolutePath());
             try {
@@ -70,7 +74,7 @@ public class Encoder extends UntypedActor {
                                 msg.getCommonAttributes(),
                                 msg.getAudioAttributes(),
                                 msg.getVideoAttributes());
-                getSelf().tell(failedMsg, getSelf());
+                getSender().tell(failedMsg, getSelf());
                 return;
             }
 
@@ -89,11 +93,9 @@ public class Encoder extends UntypedActor {
                 }
             }, getContext().dispatcher());
 
-            //TODO: may produse bug
-            final ActorRef sender = getSender();
             encodeFuture.onComplete(new OnComplete<File>() {
                 @Override
-                public void onComplete(Throwable failure, File success) throws Throwable {
+                public void onComplete(Throwable failure, File encodedFile) throws Throwable {
                     if (failure != null) {
                         ClusterMessage.EncodePartFailed failedMsg =
                                 new ClusterMessage.EncodePartFailed("Exception while encoding part",
@@ -103,12 +105,20 @@ public class Encoder extends UntypedActor {
                                         msg.getVideoAttributes());
                         sender.tell(failedMsg, getSelf());
                     } else {
-                        byte[] payload = FileUtils.readFileToByteArray(success);
+                        byte[] payload = FileUtils.readFileToByteArray(encodedFile);
                         ClusterMessage.EncodeResultPartMessage resultMsg =
                                 new  ClusterMessage.EncodeResultPartMessage(msg.getPartId(),
                                         payload,
                                         msg.getCommonAttributes().getFormat());
                         sender.tell(resultMsg, getSelf());
+
+                        //remove tmp files
+                        if (!src.delete()) {
+                            log.warning("Cannot delete temporary file: {}", src.getAbsolutePath());
+                        }
+                        if (!encodedFile.delete()){
+                            log.warning("Cannot delete temporary file: {}", encodedFile.getAbsolutePath());
+                        }
                     }
                 }
             }, getContext().dispatcher());

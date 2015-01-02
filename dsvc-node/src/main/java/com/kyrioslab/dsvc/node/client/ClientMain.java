@@ -43,7 +43,7 @@ public class ClientMain {
                 VideoAttributes va = new VideoAttributes();
                 va.setCodec("mpeg4");
                 client.tell(new LocalMessage.EncodeVideoMessage(
-                        ClientMain.class.getResource("/u4.mp4").getPath(),
+                        ClientMain.class.getResource("/test_25_48.mp4").getPath(),
                         ca,
                         aa,
                         va

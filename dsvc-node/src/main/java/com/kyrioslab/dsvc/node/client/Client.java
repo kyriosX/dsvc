@@ -8,9 +8,11 @@ package com.kyrioslab.dsvc.node.client;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
 import akka.dispatch.OnComplete;
+import akka.dispatch.OnFailure;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.routing.FromConfig;
+import com.google.common.collect.Lists;
 import com.kyrioslab.dsvc.node.messages.ClusterMessage;
 import com.kyrioslab.dsvc.node.messages.LocalMessage;
 import com.kyrioslab.dsvc.node.util.FFMPEGService;
@@ -34,6 +36,11 @@ import static akka.dispatch.Futures.future;
 public class Client extends UntypedActor {
 
     private LoggingAdapter log = Logging.getLogger(getContext().system(), this);
+
+    /**
+     * Count of parts sender threads.
+     */
+    private static final int SENDER_COUNT = 4;
 
     /**
      * Encoder router.
@@ -86,7 +93,7 @@ public class Client extends UntypedActor {
                 }
             }, getContext().dispatcher());
 
-            //receive encoded part
+            //received encoded part
         } else if (message instanceof ClusterMessage.EncodeResultPartMessage) {
             final ClusterMessage.EncodeResultPartMessage encoded =
                     (ClusterMessage.EncodeResultPartMessage) message;
@@ -96,11 +103,13 @@ public class Client extends UntypedActor {
                     && encoded.getPayload() != null
                     && encoded.getFormat() != null) {
 
+                log.info("Received encode part result message: {}", encoded.getPartId());
                 final String batchId = ffmpegService.batchIdFromPartId(encoded.getPartId());
                 List<String> partList = partsTrackMap.get(batchId);
 
                 //untrack and save part
                 if (partList.remove(encoded.getPartId())) {
+                    partsTrackMap.put(batchId, partList);
                     File resDir = ffmpegService.getReceiveDir(batchId);
                     String partId = encoded.getPartId();
                     String partName = ffmpegService.partNameFromPartId(partId, encoded.getFormat());
@@ -135,7 +144,7 @@ public class Client extends UntypedActor {
                         }, getContext().dispatcher());
                     }
                 } else {
-                    log.error("Received unknown part for batch: " + batchId);
+                    log.error("Received unknown part: {}", encoded.getPartId());
                 }
             } else {
                 log.error("Receive invalid result message from encoder: {} ", getSender());
@@ -167,7 +176,8 @@ public class Client extends UntypedActor {
     }
 
     /**
-     * Send video parts to encoder actors.
+     * Send video parts to encoders actors.
+     * Using SENDER_COUNT concurrent threads.
      *
      * @param partList list of part files
      * @param ca       common attributes
@@ -175,19 +185,43 @@ public class Client extends UntypedActor {
      * @param va       video attributes
      * @throws IOException
      */
-    protected void sendParts(List<File> partList, CommonAttributes ca,
-                             AudioAttributes aa,
-                             VideoAttributes va) throws IOException {
+    protected void sendParts(List<File> partList,
+                             final CommonAttributes ca,
+                             final AudioAttributes aa,
+                             final VideoAttributes va) throws IOException {
 
-        String batchId = partList.get(0).getParentFile().getName();
-        for (File part : partList) {
-            String partId = ffmpegService.getPartId(part);
+        //batch id - is id for all parts of the video
+        final String batchId = partList.get(0).getParentFile().getName();
 
-            //TODO: memory leak here
-            byte[] payload = FileUtils.readFileToByteArray(part);
-            ClusterMessage.EncodeVideoPartMessage encodeMsg =
-                    new ClusterMessage.EncodeVideoPartMessage(partId, payload, ca, aa, va);
-            sendPart(encodeMsg, batchId);
+        //sending parts concurrently by butches
+        for (final List<File> batch : Lists.partition(partList, SENDER_COUNT)) {
+            future(new Callable<Object>() {
+                @Override
+                public Object call(){
+                    for (File part : batch) {
+                        String partId = ffmpegService.getPartId(part);
+
+                        //TODO: memory leak here
+                        try {
+                            byte[] payload = FileUtils.readFileToByteArray(part);
+                            ClusterMessage.EncodeVideoPartMessage encodeMsg =
+                                    new ClusterMessage.EncodeVideoPartMessage(partId, payload, ca, aa, va);
+                            sendPart(encodeMsg, batchId);
+                        } catch (IOException e) {
+                            log.error("Failed sending part: {}", partId);
+                            //TODO: sen message to part tracker about failed part
+                        }
+                    }
+                    return null;
+                }
+            }, getContext().dispatcher()).onFailure(new OnFailure() {
+                @Override
+                public void onFailure(Throwable failure) throws Throwable {
+                    if (failure != null) {
+                        log.error("Failure while sending batch: {}, ",batchId, failure.getMessage());
+                    }
+                }
+            }, getContext().dispatcher());
         }
     }
 
