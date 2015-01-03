@@ -139,6 +139,7 @@ public class Client extends UntypedActor {
                                 } else {
                                     log.info("Video successfully encoded, result video: {}",
                                             success.getAbsoluteFile());
+                                    getSender().tell(success.getAbsolutePath(), getSelf());
                                 }
                             }
                         }, getContext().dispatcher());

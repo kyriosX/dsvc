@@ -60,10 +60,6 @@ public class FFMPEGService {
     private String ffmpeg;
 
     public FFMPEGService(String ffmpeg, int segmentTime, String tmpDir) {
-        if (!new File(ffmpeg).exists()) {
-            throw new IllegalArgumentException("ffmprg tool does not exists at given location: "
-                    + ffmpeg);
-        }
         this.ffmpeg = ffmpeg;
         this.segmentTime = segmentTime;
         this.tmpDir = tmpDir;
