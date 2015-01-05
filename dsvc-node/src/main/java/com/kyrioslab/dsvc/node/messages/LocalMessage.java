@@ -58,32 +58,6 @@ public interface LocalMessage {
 
     }
 
-    public static class SplitVideoMessage implements Serializable {
-
-        private final String videoAbsolutePath;
-
-        public SplitVideoMessage(String videoAbsolutePath) {
-            this.videoAbsolutePath = videoAbsolutePath;
-        }
-
-        public String getVideoAbsolutePath() {
-            return videoAbsolutePath;
-        }
-    }
-
-    public static class SplitFinishedMessage implements Serializable {
-
-        private final String partsDir;
-
-        public SplitFinishedMessage(String partsDir) {
-            this.partsDir = partsDir;
-        }
-
-        public String getPartsDir() {
-            return partsDir;
-        }
-    }
-
     public static class EncodeJobFailedMessage implements Serializable {
         private final String reason;
         private final EncodeVideoMessage encodeJob;
@@ -107,6 +81,21 @@ public interface LocalMessage {
         }
     }
 
-    public static final String ENCODER_REGISTRATION = "EncoderRegistration";
+    /**
+     * Message, sending from Client to EncodeProcessListener
+     * when encoding finished.
+     */
+    public static class EncodeResult implements Serializable {
 
+        private final String resultPath;
+
+        public EncodeResult(String resultPath) {
+            this.resultPath = resultPath;
+        }
+
+        public String getResultPath() {
+            return resultPath;
+        }
+
+    }
 }

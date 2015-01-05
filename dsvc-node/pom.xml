@@ -52,17 +52,15 @@
                             <shadedClassifierName>allinone</shadedClassifierName>
                             <artifactSet>
                                 <includes>
-                                    <include>com.typesafe.akka:akka-cluster_2.10</include>
-                                    <include>com.typesafe.akka:akka-remote_2.10</include>
-                                    <!--<include>com.typesafe.akka:akka-actor_2.10</include>-->
-                                    <!--<include>com.typesafe:config</include>-->
-                                    <!--<include>io.netty:netty</include>-->
-                                    <include>com.google.protobuf:protobuf-java</include>
-                                    <include>org.uncommons.maths:uncommons-maths</include>
-                                    <include>dsvc:jffmpegw</include>
-                                    <include>org.hamcrest:hamcrest-core</include>
-                                    <include>commons-io:commons-io</include>
-                                    <include>com.google.guava:guava</include>
+                                    <!--<include>com.typesafe.akka:akka-cluster_2.10</include>-->
+                                    <!--<include>com.typesafe.akka:akka-remote_2.10</include>-->
+                                    <!--<include>com.google.protobuf:protobuf-java</include>-->
+                                    <!--<include>org.uncommons.maths:uncommons-maths</include>-->
+                                    <!--<include>dsvc:jffmpegw</include>-->
+                                    <!--<include>org.hamcrest:hamcrest-core</include>-->
+                                    <!--<include>commons-io:commons-io</include>-->
+                                    <!--<include>com.google.guava:guava</include>-->
+                                    <include>*:*</include>
                                 </includes>
                             </artifactSet>
                             <filters>

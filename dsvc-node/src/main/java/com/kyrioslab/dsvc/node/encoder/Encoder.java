@@ -47,7 +47,7 @@ public class Encoder extends UntypedActor {
     /**
      * FFMPEG location
      */
-    public static final String FFMPEG_LOCATION = Encoder.class.getResource("/ffmpeg").getPath();
+    public static final String FFMPEG_LOCATION = "/home/wizzard/diploma_work/dsvc/ffmpeg/ffmpeg";
 
     @Override
     public void onReceive(Object message) {

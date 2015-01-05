@@ -28,6 +28,7 @@ import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -53,6 +54,11 @@ public class Client extends UntypedActor {
      */
     private Map<String, List<String>> partsTrackMap = new ConcurrentHashMap<>();
 
+    /**
+     * Tracks client for sending result back.
+     */
+    private Map<String, ActorRef> clientTrackMap = new ConcurrentHashMap<>();
+
     private final FFMPEGService ffmpegService;
 
     public Client(FFMPEGService ffmpegService) {
@@ -68,11 +74,15 @@ public class Client extends UntypedActor {
 
             final String vFormat = encodeMessage.getCommonAttributes().getFormat();
             final String vPath = encodeMessage.getPathToVideo();
+            final String batchUUID = UUID.randomUUID().toString();
+
+            //track client
+            clientTrackMap.put(batchUUID, getSender());
 
             //start splitting asynchronously
             Future<List<File>> splitFuture = future(new Callable<List<File>>() {
                 public List<File> call() throws Exception {
-                    return ffmpegService.splitVideo(vFormat, vPath);
+                    return ffmpegService.splitVideo(vFormat, vPath, batchUUID);
                 }
             }, getContext().dispatcher());
 
@@ -137,9 +147,11 @@ public class Client extends UntypedActor {
                                     log.error("Merge failure, batchId {}, error msg: {}", batchId,
                                             failure.getMessage());
                                 } else {
-                                    log.info("Video successfully encoded, result video: {}",
+                                    log.info("Video successfully encoded, sending result video: {}",
                                             success.getAbsoluteFile());
-                                    getSender().tell(success.getAbsolutePath(), getSelf());
+                                    clientTrackMap.get(batchId).tell(
+                                            new LocalMessage.EncodeResult(success.getAbsolutePath()),
+                                            getSelf());
                                 }
                             }
                         }, getContext().dispatcher());

@@ -15,7 +15,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
@@ -73,13 +72,12 @@ public class FFMPEGService {
      * @return list of splitted parts
      * @throws java.io.IOException
      */
-    public List<File> splitVideo(String format, String srcPath) throws IOException, SplitProcessException, InterruptedException {
+    public List<File> splitVideo(String format, String srcPath, String batchUUID) throws IOException, SplitProcessException, InterruptedException {
         SplitCommand command = new SplitCommand(ffmpeg, srcPath, segmentTime, 0);
 
         //add output format to spit command
         command.addAttribute(SPLIT_OUTPUT_FORMAT + format);
 
-        String batchUUID = UUID.randomUUID().toString();
         File outputDir = Paths.get(tmpDir, batchUUID).toFile();
         File receiveDir = getReceiveDir(batchUUID);
 
@@ -108,7 +106,7 @@ public class FFMPEGService {
      * Merges encoded parts into resulting video.
      *
      * @param batchUUID batch uuid
-     * @param fileName name of resulting video file
+     * @param fileName  name of resulting video file
      * @return resulting video file
      */
     public File merge(String batchUUID, String fileName) throws IllegalStateException, IOException, MergeProcessException, InterruptedException {
@@ -128,7 +126,7 @@ public class FFMPEGService {
         if (!listFile.createNewFile()) {
             throw new IOException("Cannot create file for parts list");
         }
-        try (FileWriter fw = new FileWriter(listFile)){
+        try (FileWriter fw = new FileWriter(listFile)) {
             for (File e : encodedList) {
                 fw.write("file '" + e.getAbsolutePath() + System.lineSeparator());
             }
@@ -149,10 +147,10 @@ public class FFMPEGService {
             File srcDir = getSourceDir(batchUUID);
             if (srcDir.exists()) {
 
-               //just ensure we are in tmp dir
-               if (srcDir.getParentFile().getPath().equals(tmpDir)) {
-                   FileUtils.deleteDirectory(srcDir);
-               }
+                //just ensure we are in tmp dir
+                if (srcDir.getParentFile().getPath().equals(tmpDir)) {
+                    FileUtils.deleteDirectory(srcDir);
+                }
             }
         } catch (IOException e) {
             throw new MergeProcessException("Exception while merge process " + e.getMessage());
