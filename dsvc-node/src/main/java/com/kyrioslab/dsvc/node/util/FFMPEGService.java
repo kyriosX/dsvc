@@ -171,7 +171,7 @@ public class FFMPEGService {
         return part.getParentFile().getName() + DELIMETER_ID + part.getName();
     }
 
-    public String batchIdFromPartId(String partId) {
+    public static String batchIdFromPartId(String partId) {
         return partId.substring(0, partId.indexOf(DELIMETER_ID));
     }
 

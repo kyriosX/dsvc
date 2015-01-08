@@ -6,6 +6,7 @@ package com.kyrioslab.dsvc.node.client;
  */
 
 import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
@@ -16,6 +17,7 @@ import com.google.common.collect.Lists;
 import com.kyrioslab.dsvc.node.messages.ClusterMessage;
 import com.kyrioslab.dsvc.node.messages.LocalMessage;
 import com.kyrioslab.dsvc.node.util.FFMPEGService;
+import com.kyrioslab.dsvc.node.util.PartTrackService;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
@@ -61,8 +63,14 @@ public class Client extends UntypedActor {
 
     private final FFMPEGService ffmpegService;
 
+    /**
+     * Service for handling parts timeouts
+     */
+    private final ActorRef partTrackService;
+
     public Client(FFMPEGService ffmpegService) {
         this.ffmpegService = ffmpegService;
+        partTrackService = getContext().system().actorOf(Props.create(PartTrackService.class, getSelf()));
     }
 
     @Override
@@ -114,7 +122,12 @@ public class Client extends UntypedActor {
                     && encoded.getFormat() != null) {
 
                 log.info("Received encode part result message: {}", encoded.getPartId());
-                final String batchId = ffmpegService.batchIdFromPartId(encoded.getPartId());
+                final String batchId = FFMPEGService.batchIdFromPartId(encoded.getPartId());
+
+                //untrack part from tracker
+                partTrackService.tell(new LocalMessage.UntrackPartMessage(encoded.getPartId())
+                        , getSelf());
+
                 List<String> partList = partsTrackMap.get(batchId);
 
                 //untrack and save part
@@ -176,7 +189,11 @@ public class Client extends UntypedActor {
                             failedMsg.getCommonAttributes(),
                             failedMsg.getAudioAttributes(),
                             failedMsg.getVideoAttributes());
-                    sendPart(msg, ffmpegService.batchIdFromPartId(partId));
+                    //reset part
+                    partTrackService.tell(new LocalMessage.ResetPartTimeMessage(partId),
+                            getSelf());
+
+                    sendPart(msg, FFMPEGService.batchIdFromPartId(partId));
                 } catch (IOException e) {
                     log.error("IOException while reading part: {}", partFile.getAbsolutePath());
                 }
@@ -210,7 +227,7 @@ public class Client extends UntypedActor {
         for (final List<File> batch : Lists.partition(partList, SENDER_COUNT)) {
             future(new Callable<Object>() {
                 @Override
-                public Object call(){
+                public Object call() {
                     for (File part : batch) {
                         String partId = ffmpegService.getPartId(part);
 
@@ -219,6 +236,11 @@ public class Client extends UntypedActor {
                             byte[] payload = FileUtils.readFileToByteArray(part);
                             ClusterMessage.EncodeVideoPartMessage encodeMsg =
                                     new ClusterMessage.EncodeVideoPartMessage(partId, payload, ca, aa, va);
+                            //add part to tracker
+                            partTrackService.tell(
+                                    new LocalMessage.PlaceOnTrackMessage(partId, ca, aa,va),
+                                    getSelf());
+
                             sendPart(encodeMsg, batchId);
                         } catch (IOException e) {
                             log.error("Failed sending part: {}", partId);
@@ -231,7 +253,7 @@ public class Client extends UntypedActor {
                 @Override
                 public void onFailure(Throwable failure) throws Throwable {
                     if (failure != null) {
-                        log.error("Failure while sending batch: {}, ",batchId, failure.getMessage());
+                        log.error("Failure while sending batch: {}, ", batchId, failure.getMessage());
                     }
                 }
             }, getContext().dispatcher());

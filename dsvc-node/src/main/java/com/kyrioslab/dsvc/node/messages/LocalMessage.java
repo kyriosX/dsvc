@@ -98,4 +98,73 @@ public interface LocalMessage {
         }
 
     }
+
+    //Part track service messages
+    public static abstract class TrackPartMessage implements Serializable {
+
+        private final String partId;
+
+        public TrackPartMessage(String partId) {
+            this.partId = partId;
+        }
+
+        public String getPartId() {
+            return partId;
+        }
+    }
+
+    /**
+     * Message for deleting part from track.
+     */
+    public static class UntrackPartMessage extends TrackPartMessage implements Serializable {
+        public UntrackPartMessage(String partId) {
+            super(partId);
+        }
+    }
+
+    /**
+     * Clock tick message
+     */
+    public static class TickMessage {}
+
+    /**
+     * Reset part time
+     */
+    public class ResetPartTimeMessage extends TrackPartMessage implements Serializable {
+        public ResetPartTimeMessage(String partId) {
+            super(partId);
+        }
+    }
+
+    /**
+     * Place part on track message.
+     */
+    public class PlaceOnTrackMessage extends TrackPartMessage implements Serializable{
+
+        private final CommonAttributes commonAttributes;
+        private final AudioAttributes audioAttributes;
+        private final VideoAttributes videoAttributes;
+
+        public PlaceOnTrackMessage(String partId,
+                                   CommonAttributes commonAttributes,
+                                   AudioAttributes audioAttributes,
+                                   VideoAttributes videoAttributes) {
+            super(partId);
+            this.commonAttributes = commonAttributes;
+            this.audioAttributes = audioAttributes;
+            this.videoAttributes = videoAttributes;
+        }
+
+        public CommonAttributes getCommonAttributes() {
+            return commonAttributes;
+        }
+
+        public AudioAttributes getAudioAttributes() {
+            return audioAttributes;
+        }
+
+        public VideoAttributes getVideoAttributes() {
+            return videoAttributes;
+        }
+    }
 }
