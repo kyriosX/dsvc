@@ -8,6 +8,8 @@ package com.kyrioslab.dsvc.node.client;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.cluster.Cluster;
+import akka.cluster.ClusterEvent;
 import akka.dispatch.OnComplete;
 import akka.dispatch.OnFailure;
 import akka.event.Logging;
@@ -68,9 +70,29 @@ public class Client extends UntypedActor {
      */
     private final ActorRef partTrackService;
 
+    /**
+     * Last received cluster metrics. Webgui gets it with
+     * cluster status.
+     */
+    private ClusterEvent.ClusterMetricsChanged lastMetrics;
+
     public Client(FFMPEGService ffmpegService) {
         this.ffmpegService = ffmpegService;
         partTrackService = getContext().system().actorOf(Props.create(PartTrackService.class, getSelf()));
+    }
+
+    //subscribe to ClusterMetricsChanged
+    @Override
+    public void preStart() {
+        Cluster.get(getContext().system())
+                .subscribe(getSelf(), ClusterEvent.ClusterMetricsChanged.class);
+    }
+
+    //re-subscribe when restart
+    @Override
+    public void postStop() {
+        Cluster.get(getContext().system())
+                .unsubscribe(getSelf());
     }
 
     @Override
@@ -200,6 +222,16 @@ public class Client extends UntypedActor {
             } else {
                 log.error("Resending failed. Part {} does not exists.", partFile.getAbsolutePath());
             }
+        } else if (message instanceof LocalMessage.ClusterStatusRequestMessage) {
+            ClusterEvent.CurrentClusterState currentClusterState =
+                    Cluster.get(getContext().system()).state();
+
+            getSender().tell(new LocalMessage.ClusterStatusResponceMessage(
+                    currentClusterState,
+                    lastMetrics
+            ), getSelf());
+        } else if (message instanceof ClusterEvent.ClusterMetricsChanged) {
+            lastMetrics = (ClusterEvent.ClusterMetricsChanged) message;
         } else {
             unhandled(message);
         }

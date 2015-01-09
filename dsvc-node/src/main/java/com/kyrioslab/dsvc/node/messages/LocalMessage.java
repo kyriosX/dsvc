@@ -1,5 +1,6 @@
 package com.kyrioslab.dsvc.node.messages;
 
+import akka.cluster.ClusterEvent;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
@@ -165,6 +166,34 @@ public interface LocalMessage {
 
         public VideoAttributes getVideoAttributes() {
             return videoAttributes;
+        }
+    }
+
+    /**
+     * Message for requesting client current cluster status.
+     */
+    public class ClusterStatusRequestMessage implements Serializable {}
+
+    /**
+     * Current cluster status response
+     */
+    public class ClusterStatusResponceMessage implements Serializable {
+
+        private final ClusterEvent.CurrentClusterState clusterState;
+
+        private final ClusterEvent.ClusterMetricsChanged metrics;
+
+        public ClusterStatusResponceMessage(ClusterEvent.CurrentClusterState clusterState, ClusterEvent.ClusterMetricsChanged metrics) {
+            this.clusterState = clusterState;
+            this.metrics = metrics;
+        }
+
+        public ClusterEvent.CurrentClusterState getClusterState() {
+            return clusterState;
+        }
+
+        public ClusterEvent.ClusterMetricsChanged getMetrics() {
+            return metrics;
         }
     }
 }
