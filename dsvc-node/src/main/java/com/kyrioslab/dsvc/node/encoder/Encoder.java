@@ -17,6 +17,7 @@ import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
 import com.kyrioslab.jffmpegw.command.BuilderException;
 import com.kyrioslab.jffmpegw.command.Command;
+import com.kyrioslab.jffmpegw.command.EncodeCommand;
 import com.kyrioslab.jffmpegw.command.EncodeCommandBuilder;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -60,7 +61,6 @@ public class Encoder extends UntypedActor {
 
             final File src = Paths.get(TMP_DIR, msg.getPartId()).toFile();
 
-            //TODO: may produse bug
             final ActorRef sender = getSender();
 
             log.debug("Saving part to file: {}", src.getAbsolutePath());
@@ -71,9 +71,7 @@ public class Encoder extends UntypedActor {
                 ClusterMessage.EncodePartFailed failedMsg =
                         new ClusterMessage.EncodePartFailed("IOException while saving part to file",
                                 msg.getPartId(),
-                                msg.getCommonAttributes(),
-                                msg.getAudioAttributes(),
-                                msg.getVideoAttributes());
+                                msg.getCommand());
                 getSender().tell(failedMsg, getSelf());
                 return;
             }
@@ -83,9 +81,7 @@ public class Encoder extends UntypedActor {
                 public File call() throws Exception {
                     try {
                         return encode(src,
-                                msg.getCommonAttributes(),
-                                msg.getAudioAttributes(),
-                                msg.getVideoAttributes());
+                               msg.getCommand());
                     } catch (BuilderException e) {
                         e.printStackTrace();
                         return null;
@@ -100,16 +96,14 @@ public class Encoder extends UntypedActor {
                         ClusterMessage.EncodePartFailed failedMsg =
                                 new ClusterMessage.EncodePartFailed("Exception while encoding part",
                                         msg.getPartId(),
-                                        msg.getCommonAttributes(),
-                                        msg.getAudioAttributes(),
-                                        msg.getVideoAttributes());
+                                        msg.getCommand());
                         sender.tell(failedMsg, getSelf());
                     } else {
                         byte[] payload = FileUtils.readFileToByteArray(encodedFile);
                         ClusterMessage.EncodeResultPartMessage resultMsg =
                                 new  ClusterMessage.EncodeResultPartMessage(msg.getPartId(),
                                         payload,
-                                        msg.getCommonAttributes().getFormat());
+                                        msg.getCommand().getOutputFormat());
                         sender.tell(resultMsg, getSelf());
 
                         //remove tmp files
@@ -128,17 +122,13 @@ public class Encoder extends UntypedActor {
     }
 
     protected File encode(File src,
-                          CommonAttributes ca,
-                          AudioAttributes aa,
-                          VideoAttributes va) throws BuilderException, EncodeProcessException {
+                          EncodeCommand command) throws BuilderException, EncodeProcessException {
 
         //form encode command
-        ca.setInputFile(src.getAbsolutePath());
-        Command command = new EncodeCommandBuilder(FFMPEG_LOCATION,
-                ca,
-                va,
-                aa).build();
-        String resultName = getResultFileName(src.getName(), ca.getFormat());
+        command.setFfmpegLocation(FFMPEG_LOCATION);
+        command.setInput(src.getAbsolutePath());
+
+        String resultName = getResultFileName(src.getName(), command.getOutputFormat());
         command.addAttribute(resultName);
 
         //start encode process

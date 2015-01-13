@@ -4,6 +4,7 @@ import akka.cluster.ClusterEvent;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
+import com.kyrioslab.jffmpegw.command.EncodeCommand;
 
 import java.io.Serializable;
 
@@ -17,46 +18,27 @@ public interface LocalMessage {
     public static class EncodeVideoMessage implements Serializable {
 
         private final String pathToVideo;
-
-        private final CommonAttributes commonAttributes;
-        private final AudioAttributes audioAttributes;
-        private final VideoAttributes videoAttributes;
+        private final EncodeCommand command;
 
         /**
          * Message send from GUI to client.
          *
          * @param pathToVideo absolute path to video
-         * @param ca          common attributes
-         * @param aa          audio attributes
-         * @param va          video attributes
          */
         public EncodeVideoMessage(String pathToVideo,
-                                  CommonAttributes ca,
-                                  AudioAttributes aa,
-                                  VideoAttributes va) {
+                                  EncodeCommand command) {
 
             this.pathToVideo = pathToVideo;
-            commonAttributes = ca;
-            audioAttributes = aa;
-            videoAttributes = va;
+            this.command = command;
         }
 
         public String getPathToVideo() {
             return pathToVideo;
         }
 
-        public CommonAttributes getCommonAttributes() {
-            return commonAttributes;
+        public EncodeCommand getCommand() {
+            return command;
         }
-
-        public AudioAttributes getAudioAttributes() {
-            return audioAttributes;
-        }
-
-        public VideoAttributes getVideoAttributes() {
-            return videoAttributes;
-        }
-
     }
 
     public static class EncodeJobFailedMessage implements Serializable {
@@ -142,30 +124,16 @@ public interface LocalMessage {
      */
     public class PlaceOnTrackMessage extends TrackPartMessage implements Serializable{
 
-        private final CommonAttributes commonAttributes;
-        private final AudioAttributes audioAttributes;
-        private final VideoAttributes videoAttributes;
+        private final EncodeCommand command;
 
         public PlaceOnTrackMessage(String partId,
-                                   CommonAttributes commonAttributes,
-                                   AudioAttributes audioAttributes,
-                                   VideoAttributes videoAttributes) {
+                                   EncodeCommand command) {
             super(partId);
-            this.commonAttributes = commonAttributes;
-            this.audioAttributes = audioAttributes;
-            this.videoAttributes = videoAttributes;
+            this.command = command;
         }
 
-        public CommonAttributes getCommonAttributes() {
-            return commonAttributes;
-        }
-
-        public AudioAttributes getAudioAttributes() {
-            return audioAttributes;
-        }
-
-        public VideoAttributes getVideoAttributes() {
-            return videoAttributes;
+        public EncodeCommand getCommand() {
+            return command;
         }
     }
 

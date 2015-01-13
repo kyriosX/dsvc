@@ -11,8 +11,15 @@ import com.kyrioslab.dsvc.node.util.FFMPEGService;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
+import com.kyrioslab.jffmpegw.attributes.parser.StreamInfo;
+import com.kyrioslab.jffmpegw.command.BuilderException;
+import com.kyrioslab.jffmpegw.command.Command;
+import com.kyrioslab.jffmpegw.command.EncodeCommand;
+import com.kyrioslab.jffmpegw.command.EncodeCommandBuilder;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import java.util.Arrays;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
@@ -21,7 +28,7 @@ import com.typesafe.config.ConfigFactory;
 public class ClientMain {
     public static void main(String[] args) {
         String port = "0";
-        String ffmpeg = "ffmpeg";
+        final String ffmpeg;
         String segmentTime = "30";
         String tmpDir = System.getProperty("java.io.tmpdir");
         final String inputFile;
@@ -35,6 +42,8 @@ public class ClientMain {
         }
         if (args.length > 1) {
             ffmpeg = args[1];
+        } else {
+            ffmpeg = "/home/wizzard/diploma_work/dsvc/ffmpeg/ffmpeg";
         }
         if (args.length > 2) {
             segmentTime = args[2];
@@ -45,7 +54,7 @@ public class ClientMain {
         if (args.length > 4) {
             inputFile = args[4];
         } else {
-            inputFile = null;
+            inputFile = "/home/wizzard/diploma_work/dsvc/ffmpeg/test.mp4";
         }
         if (args.length > 5) {
             format = args[5];
@@ -86,15 +95,32 @@ public class ClientMain {
                         && Strings.isNullOrEmpty(format)
                         && Strings.isNullOrEmpty(acodec))
                         && Strings.isNullOrEmpty(vcodec)) {
-                    CommonAttributes ca = new CommonAttributes();
-                    AudioAttributes aa = new AudioAttributes();
-                    VideoAttributes va = new VideoAttributes();
 
-                    ca.setFormat(format);
-                    aa.setCodec(acodec);
-                    va.setCodec(vcodec);
+                    StreamInfo vs = new StreamInfo();
+                    vs.setIndex(0);
+                    vs.setCodecName("mpeg4");
+                    vs.setCodecType("video");
+                    vs.setWidth("420");
+                    vs.setHeight("360");
+                    vs.setAvgFrameRate("15");
+                    vs.setBitRate("196000");
+
+                    StreamInfo as = new StreamInfo();
+                    as.setIndex(1);
+                    as.setCodecName("copy");
+                    as.setCodecType("audio");
+
+                    EncodeCommand command = null;
+                    try {
+                        command = new EncodeCommandBuilder(ffmpeg,
+                                Arrays.asList(vs, as)).build();
+                    } catch (BuilderException e) {
+                        e.printStackTrace();
+                    }
+                    command.setFormats("mp4", "mp4");
+
                     client.tell(
-                            new LocalMessage.EncodeVideoMessage(inputFile,ca,aa,va), null);
+                            new LocalMessage.EncodeVideoMessage(inputFile, command), null);
                 }
             }
         });

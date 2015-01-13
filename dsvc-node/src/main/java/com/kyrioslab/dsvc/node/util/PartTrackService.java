@@ -70,9 +70,7 @@ public class PartTrackService extends UntypedActor {
                     client.tell(new ClusterMessage.EncodePartFailed(
                                     "Part timed out: " + pt.getTime(),
                                     pt.getPartId(),
-                                    pt.getSavedMsg().getCommonAttributes(),
-                                    pt.getSavedMsg().getAudioAttributes(),
-                                    pt.getSavedMsg().getVideoAttributes()
+                                    pt.getSavedMsg().getCommand()
                             ),
                             getSelf());
                 }

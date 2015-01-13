@@ -20,9 +20,7 @@ import com.kyrioslab.dsvc.node.messages.ClusterMessage;
 import com.kyrioslab.dsvc.node.messages.LocalMessage;
 import com.kyrioslab.dsvc.node.util.FFMPEGService;
 import com.kyrioslab.dsvc.node.util.PartTrackService;
-import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
-import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
-import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
+import com.kyrioslab.jffmpegw.command.EncodeCommand;
 import org.apache.commons.io.FileUtils;
 import scala.concurrent.Future;
 
@@ -102,7 +100,7 @@ public class Client extends UntypedActor {
         if (message instanceof LocalMessage.EncodeVideoMessage) {
             final LocalMessage.EncodeVideoMessage encodeMessage = (LocalMessage.EncodeVideoMessage) message;
 
-            final String vFormat = encodeMessage.getCommonAttributes().getFormat();
+            final String vFormat = encodeMessage.getCommand().getInputFormat();
             final String vPath = encodeMessage.getPathToVideo();
             final String batchUUID = UUID.randomUUID().toString();
 
@@ -127,9 +125,7 @@ public class Client extends UntypedActor {
                         log.error("Split failed: no parts");
                         return;
                     }
-                    sendParts(partList, encodeMessage.getCommonAttributes(),
-                            encodeMessage.getAudioAttributes(),
-                            encodeMessage.getVideoAttributes());
+                    sendParts(partList, encodeMessage.getCommand());
                 }
             }, getContext().dispatcher());
 
@@ -208,9 +204,7 @@ public class Client extends UntypedActor {
                     byte[] payload = FileUtils.readFileToByteArray(partFile);
                     ClusterMessage.EncodeVideoPartMessage msg = new ClusterMessage.EncodeVideoPartMessage(partId,
                             payload,
-                            failedMsg.getCommonAttributes(),
-                            failedMsg.getAudioAttributes(),
-                            failedMsg.getVideoAttributes());
+                            failedMsg.getCommand());
                     //reset part
                     partTrackService.tell(new LocalMessage.ResetPartTimeMessage(partId),
                             getSelf());
@@ -242,15 +236,10 @@ public class Client extends UntypedActor {
      * Using SENDER_COUNT concurrent threads.
      *
      * @param partList list of part files
-     * @param ca       common attributes
-     * @param aa       audio attributes
-     * @param va       video attributes
      * @throws IOException
      */
     protected void sendParts(List<File> partList,
-                             final CommonAttributes ca,
-                             final AudioAttributes aa,
-                             final VideoAttributes va) throws IOException {
+                             final EncodeCommand encodeCommand) throws IOException {
 
         //batch id - is id for all parts of the video
         final String batchId = partList.get(0).getParentFile().getName();
@@ -267,10 +256,10 @@ public class Client extends UntypedActor {
                         try {
                             byte[] payload = FileUtils.readFileToByteArray(part);
                             ClusterMessage.EncodeVideoPartMessage encodeMsg =
-                                    new ClusterMessage.EncodeVideoPartMessage(partId, payload, ca, aa, va);
+                                    new ClusterMessage.EncodeVideoPartMessage(partId, payload, encodeCommand);
                             //add part to tracker
                             partTrackService.tell(
-                                    new LocalMessage.PlaceOnTrackMessage(partId, ca, aa,va),
+                                    new LocalMessage.PlaceOnTrackMessage(partId, encodeCommand),
                                     getSelf());
 
                             sendPart(encodeMsg, batchId);

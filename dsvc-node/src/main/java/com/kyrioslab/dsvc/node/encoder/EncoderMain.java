@@ -12,7 +12,7 @@ import com.typesafe.config.ConfigFactory;
 public class EncoderMain {
     public static void main(String [] args){
         // Override the configuration of the port when specified as program argument
-        final String port = args.length > 0 ? args[0] : "0";
+        final String port = args.length > 0 ? args[0] : "2551";
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port + "\n akka.cluster.roles = [encoder]")
                .withFallback(ConfigFactory.load("encode"));
 

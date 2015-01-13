@@ -4,6 +4,7 @@ import com.kyrioslab.jffmpegw.attributes.Attributes;
 import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
 import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
 import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
+import com.kyrioslab.jffmpegw.command.EncodeCommand;
 
 import java.io.Serializable;
 
@@ -19,19 +20,13 @@ public interface ClusterMessage {
         private final String partId;
         private final byte[] payload;
 
-        private final CommonAttributes commonAttributes;
-        private final AudioAttributes audioAttributes;
-        private final VideoAttributes videoAttributes;
+        private final EncodeCommand command;
 
         public EncodeVideoPartMessage(String partId, byte[] payload,
-                                      CommonAttributes ca,
-                                      AudioAttributes aa,
-                                      VideoAttributes va) {
+                                      EncodeCommand command) {
             this.partId = partId;
             this.payload = payload.clone();
-            commonAttributes = ca;
-            audioAttributes = aa;
-            videoAttributes = va;
+            this.command = command;
         }
 
         public String getPartId() {
@@ -42,16 +37,8 @@ public interface ClusterMessage {
             return payload;
         }
 
-        public CommonAttributes getCommonAttributes() {
-            return commonAttributes;
-        }
-
-        public AudioAttributes getAudioAttributes() {
-            return audioAttributes;
-        }
-
-        public VideoAttributes getVideoAttributes() {
-            return videoAttributes;
+        public EncodeCommand getCommand() {
+            return command;
         }
     }
 
@@ -84,19 +71,13 @@ public interface ClusterMessage {
 
         private final String reason;
         private final String partId;
-        private final CommonAttributes commonAttributes;
+        private final EncodeCommand command;
 
-        private final AudioAttributes audioAttributes;
-        private final VideoAttributes videoAttributes;
-
-        public EncodePartFailed(String reason, String partId,CommonAttributes ca,
-                                AudioAttributes aa,
-                                VideoAttributes va) {
+        public EncodePartFailed(String reason, String partId,
+                                EncodeCommand command) {
             this.reason = reason;
             this.partId = partId;
-            commonAttributes = ca;
-            audioAttributes = aa;
-            videoAttributes = va;
+            this.command = command;
         }
 
         public String getReason() {
@@ -107,16 +88,8 @@ public interface ClusterMessage {
             return partId;
         }
 
-        public CommonAttributes getCommonAttributes() {
-            return commonAttributes;
-        }
-
-        public AudioAttributes getAudioAttributes() {
-            return audioAttributes;
-        }
-
-        public VideoAttributes getVideoAttributes() {
-            return videoAttributes;
+        public EncodeCommand getCommand() {
+            return command;
         }
 
         @Override
