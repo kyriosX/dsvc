@@ -120,7 +120,7 @@ public class ClientMain {
                     command.setFormats("mp4", "mp4");
 
                     client.tell(
-                            new LocalMessage.EncodeVideoMessage(inputFile, command), null);
+                            new LocalMessage.EncodeVideoMessage(inputFile, command, "10"), null);
                 }
             }
         });

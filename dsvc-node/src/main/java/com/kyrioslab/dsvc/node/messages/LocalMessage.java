@@ -1,9 +1,6 @@
 package com.kyrioslab.dsvc.node.messages;
 
 import akka.cluster.ClusterEvent;
-import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
-import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
-import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
 import com.kyrioslab.jffmpegw.command.EncodeCommand;
 
 import java.io.Serializable;
@@ -19,6 +16,7 @@ public interface LocalMessage {
 
         private final String pathToVideo;
         private final EncodeCommand command;
+        private final String duration;
 
         /**
          * Message send from GUI to client.
@@ -26,10 +24,12 @@ public interface LocalMessage {
          * @param pathToVideo absolute path to video
          */
         public EncodeVideoMessage(String pathToVideo,
-                                  EncodeCommand command) {
+                                  EncodeCommand command,
+                                  String duration) {
 
             this.pathToVideo = pathToVideo;
             this.command = command;
+            this.duration = duration;
         }
 
         public String getPathToVideo() {
@@ -38,6 +38,10 @@ public interface LocalMessage {
 
         public EncodeCommand getCommand() {
             return command;
+        }
+
+        public String getDuration() {
+            return duration;
         }
     }
 
@@ -108,7 +112,8 @@ public interface LocalMessage {
     /**
      * Clock tick message
      */
-    public static class TickMessage {}
+    public static class TickMessage {
+    }
 
     /**
      * Reset part time
@@ -122,7 +127,7 @@ public interface LocalMessage {
     /**
      * Place part on track message.
      */
-    public class PlaceOnTrackMessage extends TrackPartMessage implements Serializable{
+    public class PlaceOnTrackMessage extends TrackPartMessage implements Serializable {
 
         private final EncodeCommand command;
 
@@ -140,7 +145,8 @@ public interface LocalMessage {
     /**
      * Message for requesting client current cluster status.
      */
-    public class ClusterStatusRequestMessage implements Serializable {}
+    public class ClusterStatusRequestMessage implements Serializable {
+    }
 
     /**
      * Current cluster status response

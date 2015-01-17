@@ -72,8 +72,9 @@ public class FFMPEGService {
      * @return list of splitted parts
      * @throws java.io.IOException
      */
-    public List<File> splitVideo(String format, String srcPath, String batchUUID) throws IOException, SplitProcessException, InterruptedException {
-        SplitCommand command = new SplitCommand(ffmpeg, srcPath, segmentTime, 0);
+    public List<File> splitVideo(String format, String srcPath, String batchUUID,
+                                 String duration) throws IOException, SplitProcessException, InterruptedException {
+        SplitCommand command = new SplitCommand(ffmpeg, srcPath, segmentTime, 0, duration);
 
         //add output format to spit command
         command.addAttribute(SPLIT_OUTPUT_FORMAT + format);

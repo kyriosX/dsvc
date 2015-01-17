@@ -110,7 +110,8 @@ public class Client extends UntypedActor {
             //start splitting asynchronously
             Future<List<File>> splitFuture = future(new Callable<List<File>>() {
                 public List<File> call() throws Exception {
-                    return ffmpegService.splitVideo(vFormat, vPath, batchUUID);
+                    return ffmpegService.splitVideo(vFormat, vPath, batchUUID,
+                            encodeMessage.getDuration());
                 }
             }, getContext().dispatcher());
 
@@ -217,8 +218,7 @@ public class Client extends UntypedActor {
                 log.error("Resending failed. Part {} does not exists.", partFile.getAbsolutePath());
             }
         } else if (message instanceof LocalMessage.ClusterStatusRequestMessage) {
-            ClusterEvent.CurrentClusterState currentClusterState =
-                    Cluster.get(getContext().system()).state();
+            ClusterEvent.CurrentClusterState currentClusterState = getClusterState();
 
             getSender().tell(new LocalMessage.ClusterStatusResponceMessage(
                     currentClusterState,
@@ -293,5 +293,9 @@ public class Client extends UntypedActor {
 
         //send part
         encoder.tell(vPartMsg, getSelf());
+    }
+
+    private ClusterEvent.CurrentClusterState getClusterState() {
+        return Cluster.get(getContext().system()).state();
     }
 }
