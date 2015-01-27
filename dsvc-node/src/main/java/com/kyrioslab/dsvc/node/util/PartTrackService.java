@@ -73,6 +73,7 @@ public class PartTrackService extends UntypedActor {
                                     pt.getSavedMsg().getCommand()
                             ),
                             getSelf());
+                    partList.remove(pt);
                 }
             }
             if (partList.size() == 0) {
@@ -130,7 +131,7 @@ public class PartTrackService extends UntypedActor {
             log.info("Part {} removed from track", partId);
             recalculateAvg();
         } else {
-            log.info("Cannot fond part {}", partId);
+            log.info("Part not registered {}", partId);
         }
     }
 

@@ -48,7 +48,7 @@ public class Encoder extends UntypedActor {
     /**
      * FFMPEG location
      */
-    public static final String FFMPEG_LOCATION = "/home/wizzard/diploma_work/dsvc/ffmpeg/ffmpeg";
+    public static final String FFMPEG_LOCATION = "ffmpeg";
 
     @Override
     public void onReceive(Object message) {
@@ -63,7 +63,7 @@ public class Encoder extends UntypedActor {
 
             final ActorRef sender = getSender();
 
-            log.debug("Saving part to file: {}", src.getAbsolutePath());
+            log.info("Saving part to file: {}", src.getAbsolutePath());
             try {
                 FileUtils.writeByteArrayToFile(src, msg.getPayload());
             } catch (IOException e) {
@@ -94,7 +94,8 @@ public class Encoder extends UntypedActor {
                 public void onComplete(Throwable failure, File encodedFile) throws Throwable {
                     if (failure != null) {
                         ClusterMessage.EncodePartFailed failedMsg =
-                                new ClusterMessage.EncodePartFailed("Exception while encoding part",
+                                new ClusterMessage.EncodePartFailed("Exception while encoding part. "
+                                        + failure.getMessage(),
                                         msg.getPartId(),
                                         msg.getCommand());
                         sender.tell(failedMsg, getSelf());

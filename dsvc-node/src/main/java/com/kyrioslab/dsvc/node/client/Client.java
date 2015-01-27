@@ -61,6 +61,9 @@ public class Client extends UntypedActor {
      */
     private Map<String, ActorRef> clientTrackMap = new ConcurrentHashMap<>();
 
+    /**
+     * Service provides core methods.
+     */
     private final FFMPEGService ffmpegService;
 
     /**
@@ -98,7 +101,11 @@ public class Client extends UntypedActor {
 
         //prepare video file for encoding and send parts to encoders
         if (message instanceof LocalMessage.EncodeVideoMessage) {
+
             final LocalMessage.EncodeVideoMessage encodeMessage = (LocalMessage.EncodeVideoMessage) message;
+
+            log.info("Received file for encoding: {}, command: {}", encodeMessage.getPathToVideo(),
+                    encodeMessage.getCommand().getCommand());
 
             final String vFormat = encodeMessage.getCommand().getInputFormat();
             final String vPath = encodeMessage.getPathToVideo();
@@ -120,7 +127,7 @@ public class Client extends UntypedActor {
                 @Override
                 public void onComplete(Throwable failure, List<File> partList) throws Throwable {
                     if (failure != null) {
-                        log.error("Split failed: ", failure.getMessage());
+                        log.error("Split failed: ", failure.toString());
                         return;
                     } else if (partList == null) {
                         log.error("Split failed: no parts");
@@ -162,6 +169,10 @@ public class Client extends UntypedActor {
                         log.error("IOException occurred while saving encoded part: {}", partId);
                     }
 
+                    //send progress message
+                    clientTrackMap.get(batchId)
+                            .tell(new LocalMessage.ProgressMessage(), getSelf());
+
                     //merge results if no parts pending
                     if (partList.isEmpty()) {
                         partsTrackMap.remove(batchId);
@@ -197,26 +208,48 @@ public class Client extends UntypedActor {
         } else if (message instanceof ClusterMessage.EncodePartFailed) {
             final ClusterMessage.EncodePartFailed failedMsg = (ClusterMessage.EncodePartFailed) message;
 
-            log.warning("Received failed part message: {}. Sending part to different encoder.", failedMsg);
-            String partId = failedMsg.getPartId();
-            File partFile = ffmpegService.getPartFile(partId);
-            if (partFile.exists()) {
-                try {
-                    byte[] payload = FileUtils.readFileToByteArray(partFile);
-                    ClusterMessage.EncodeVideoPartMessage msg = new ClusterMessage.EncodeVideoPartMessage(partId,
-                            payload,
-                            failedMsg.getCommand());
-                    //reset part
-                    partTrackService.tell(new LocalMessage.ResetPartTimeMessage(partId),
-                            getSelf());
+            //FAILFAST FOR NOW
+            final String partId = failedMsg.getPartId();
+            final String batchId = FFMPEGService.batchIdFromPartId(partId);
 
-                    sendPart(msg, FFMPEGService.batchIdFromPartId(partId));
-                } catch (IOException e) {
-                    log.error("IOException while reading part: {}", partFile.getAbsolutePath());
-                }
+            log.info("Removing all parts from track (as failfast) with batch id: "
+                    + batchId);
+
+            partTrackService.tell(new LocalMessage.UntrackPartMessage(partId), getSelf());
+            partsTrackMap.remove(batchId);
+            ActorRef client = clientTrackMap.remove(batchId);
+
+            if (client != null) {
+                client.tell(
+                        new LocalMessage.EncodeJobFailedMessage(failedMsg.getReason(),
+                                failedMsg.getCommand()),
+                        getSelf());
             } else {
-                log.error("Resending failed. Part {} does not exists.", partFile.getAbsolutePath());
+                log.warning("Unable to get registered client gui, mb already removed?");
             }
+
+//            log.warning("Received failed part message: {}. Sending part to different encoder.", failedMsg);
+//            String partId = failedMsg.getPartId();
+//            File partFile = ffmpegService.getPartFile(partId);
+//            if (partFile.exists()) {
+//                try {
+//                    byte[] payload = FileUtils.readFileToByteArray(partFile);
+//                    ClusterMessage.EncodeVideoPartMessage msg = new ClusterMessage.EncodeVideoPartMessage(partId,
+//                            payload,
+//                            failedMsg.getCommand());
+//                    //reset part
+//                    partTrackService.tell(new LocalMessage.ResetPartTimeMessage(partId),
+//                            getSelf());
+//
+//                    sendPart(msg, FFMPEGService.batchIdFromPartId(partId));
+//                } catch (IOException e) {
+//                    log.error("IOException while reading part: {}", partFile.getAbsolutePath());
+//                    partTrackService.tell(new LocalMessage.UntrackPartMessage(partId), getSelf());
+//                }
+//            } else {
+//                log.error("Resending failed. Part {} does not exists.", partFile.getAbsolutePath());
+//                partTrackService.tell(new LocalMessage.UntrackPartMessage(partId), getSelf());
+//            }
         } else if (message instanceof LocalMessage.ClusterStatusRequestMessage) {
             ClusterEvent.CurrentClusterState currentClusterState = getClusterState();
 
@@ -243,6 +276,8 @@ public class Client extends UntypedActor {
 
         //batch id - is id for all parts of the video
         final String batchId = partList.get(0).getParentFile().getName();
+
+        log.info("Start sending parts concurrently, batchId: {}", batchId);
 
         //sending parts concurrently by butches
         for (final List<File> batch : Lists.partition(partList, SENDER_COUNT)) {
@@ -293,6 +328,8 @@ public class Client extends UntypedActor {
 
         //send part
         encoder.tell(vPartMsg, getSelf());
+
+        log.info("Part sent: {}", vPartMsg.getPartId());
     }
 
     private ClusterEvent.CurrentClusterState getClusterState() {

@@ -1,6 +1,5 @@
 package com.kyrioslab.dsvc.node.client;
 
-import akka.actor.Actor;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
@@ -8,12 +7,8 @@ import akka.cluster.Cluster;
 import com.google.common.base.Strings;
 import com.kyrioslab.dsvc.node.messages.LocalMessage;
 import com.kyrioslab.dsvc.node.util.FFMPEGService;
-import com.kyrioslab.jffmpegw.attributes.AudioAttributes;
-import com.kyrioslab.jffmpegw.attributes.CommonAttributes;
-import com.kyrioslab.jffmpegw.attributes.VideoAttributes;
 import com.kyrioslab.jffmpegw.attributes.parser.StreamInfo;
 import com.kyrioslab.jffmpegw.command.BuilderException;
-import com.kyrioslab.jffmpegw.command.Command;
 import com.kyrioslab.jffmpegw.command.EncodeCommand;
 import com.kyrioslab.jffmpegw.command.EncodeCommandBuilder;
 import com.typesafe.config.Config;
@@ -23,7 +18,6 @@ import java.util.Arrays;
 
 /**
  * Created by Ivan Kirilyuk on 28.12.14.
- *
  */
 public class ClientMain {
     public static void main(String[] args) {
@@ -74,8 +68,8 @@ public class ClientMain {
 
         final Config config = ConfigFactory.parseString(
                 "akka.remote.netty.tcp.port=" + port + "\n " +
-                "akka.cluster.roles = [client]")
-                .withFallback(ConfigFactory.load("encode"));
+                        "akka.cluster.roles = [client]")
+                .withFallback(ConfigFactory.load("encode_system"));
 
         final ActorSystem system = ActorSystem.create("EncodeSystem", config);
 
@@ -127,17 +121,16 @@ public class ClientMain {
         //#registerOnUp
     }
 
-    public static ActorRef startClient(String port,
-                                       final FFMPEGService ffmpegService) {
+    public static ActorRef startClient(
+            final FFMPEGService ffmpegService) {
 
         final Config config = ConfigFactory.parseString(
-                "akka.remote.netty.tcp.port=" + port + "\n " +
                         "akka.cluster.roles = [client]")
-                .withFallback(ConfigFactory.load("encode"));
+                .withFallback(ConfigFactory.load("encode_system"));
 
         final ActorSystem system = ActorSystem.create("EncodeSystem", config);
 
         return system.actorOf(Props.create(Client.class, ffmpegService),
-                        "encoderClient");
+                "encoderClient");
     }
 }

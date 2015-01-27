@@ -46,25 +46,27 @@ public interface LocalMessage {
     }
 
     public static class EncodeJobFailedMessage implements Serializable {
-        private final String reason;
-        private final EncodeVideoMessage encodeJob;
 
-        public EncodeJobFailedMessage(String reason, EncodeVideoMessage encodeJob) {
+        private final String reason;
+        private final EncodeCommand command;
+
+        public EncodeJobFailedMessage(String reason,EncodeCommand command) {
             this.reason = reason;
-            this.encodeJob = encodeJob;
+            this.command = command;
         }
 
         public String getReason() {
             return reason;
         }
 
-        public EncodeVideoMessage getEncodeJob() {
-            return encodeJob;
+        public EncodeCommand getCommand() {
+            return command;
         }
 
         @Override
         public String toString() {
-            return "EncodeJobFailed(" + reason + ")";
+            return "EncodeJobFailed(Command:" + command.getCommand() +
+                    " reason: " + reason + ")";
         }
     }
 
@@ -142,6 +144,8 @@ public interface LocalMessage {
         }
     }
 
+
+
     /**
      * Message for requesting client current cluster status.
      */
@@ -170,4 +174,10 @@ public interface LocalMessage {
             return metrics;
         }
     }
+
+    /**
+     * Encoding progress message
+     */
+    public class ProgressMessage implements Serializable{}
+
 }
