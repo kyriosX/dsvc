@@ -122,10 +122,13 @@ public class ClientMain {
     }
 
     public static ActorRef startClient(
-            final FFMPEGService ffmpegService) {
+            final FFMPEGService ffmpegService, String host, String port, String seedNodes) {
 
         final Config config = ConfigFactory.parseString(
-                        "akka.cluster.roles = [client]")
+                "akka.remote.netty.tcp.port=" + port
+                        + "\n akka.cluster.roles = [client]"
+                        + "\n akka.remote.netty.tcp.hostname=" + host
+                        + "\n akka.cluster.seed-nodes=" + seedNodes)
                 .withFallback(ConfigFactory.load("encode_system"));
 
         final ActorSystem system = ActorSystem.create("EncodeSystem", config);
